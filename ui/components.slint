@@ -1,0 +1,110 @@
+import { TextEdit } from "std-widgets.slint";
+import { Theme, Card, Choice, Body, Muted, SectionTitle, Tag, ActionButton, Disclosure } from "theme.slint";
+
+export component HardwareCard inherits Card {
+    in property <string> label;
+    in property <string> value;
+    in property <string> caption;
+    min-height: 106px; min-width: 0px; preferred-width: 0px;
+    VerticalLayout {
+        padding: 18px; spacing: 8px;
+        Text { text: root.label; font-size: 11px; font-weight: 600; color: Theme.muted; }
+        Body { text: root.value; font-size: 18px; font-weight: 600; }
+        Muted { text: root.caption; font-size: 11px; }
+    }
+}
+
+export component AppCard inherits Card {
+    min-width: 0px; preferred-width: 0px;
+    in property <string> name;
+    in property <string> description;
+    in property <string> mark;
+    in property <string> detail;
+    in property <bool> selected;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+    callback source();
+    border-color: selected ? #456c60 : Theme.border;
+    VerticalLayout {
+        padding: 14px; spacing: 8px;
+        HorizontalLayout {
+            spacing: 12px;
+            Rectangle {
+                width: 36px; height: 36px; border-radius: 9px; background: Theme.raised;
+                Text { text: root.mark; color: root.selected ? Theme.mint : Theme.muted; font-size: 15px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+            }
+            VerticalLayout {
+                Choice { text: root.name; checked: root.selected; enabled: root.enabled; toggled(value) => {root.toggled(value);} }
+                Muted { text: root.description; font-size: 12px; }
+            }
+        }
+        Disclosure { title: "Fonte e detalhes";
+            Muted { text: root.detail; font-size: 12px; }
+            ActionButton { text: "Abrir fonte oficial ↗"; quiet: true; clicked => {root.source();} }
+        }
+    }
+}
+
+export component BrowserChoice inherits Card {
+    min-width: 0px; preferred-width: 0px;
+    in property <string> name;
+    in property <string> description;
+    in property <bool> selected;
+    in property <bool> enabled: true;
+    callback choose();
+    border-color: selected ? #456c60 : Theme.border;
+    VerticalLayout {
+        padding: 12px; spacing: 5px;
+        ActionButton { text: (root.selected ? "●  " : "○  ") + root.name; quiet: true; selected: root.selected; enabled: root.enabled; clicked => {root.choose();} }
+        Muted { text: root.description; font-size: 12px; }
+    }
+}
+
+export component TweakCard inherits Card {
+    in property <string> title;
+    in property <string> benefit;
+    in property <string> detail;
+    in property <string> state;
+    in property <bool> selected;
+    in property <bool> assisted;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+    callback open();
+    callback rollback();
+    VerticalLayout {
+        padding: 16px; spacing: 8px;
+        HorizontalLayout {
+            VerticalLayout {
+                Choice { text: root.title; checked: root.selected; enabled: root.enabled; toggled(value) => {root.toggled(value);} }
+                Muted { text: root.benefit; }
+            }
+            Tag { text: root.assisted ? "Assistido" : "Reversível"; tone: root.assisted ? 0 : 1; }
+        }
+        Muted { text: root.state; font-size: 12px; }
+        Disclosure { title: "Requisitos e reversão";
+            Muted { text: root.detail; }
+            HorizontalLayout {
+                if root.assisted: ActionButton { text: "Abrir no Windows ↗"; enabled: root.enabled; clicked => {root.open();} }
+                if !root.assisted: ActionButton { text: "Reverter alteração"; enabled: root.enabled; clicked => {root.rollback();} }
+            }
+        }
+    }
+}
+
+export component TaskCard inherits Card {
+    in property <string> title;
+    in property <string> state;
+    in property <string> detail;
+    in property <int> code;
+    VerticalLayout {
+        padding: 16px; spacing: 8px;
+        HorizontalLayout {
+            SectionTitle { text: root.title; font-size: 14px; }
+            Tag { text: root.state; tone: root.code == 4 ? 1 : root.code == 5 ? 3 : root.code == 6 ? 2 : 0; }
+        }
+        Disclosure { title: "Detalhes da tarefa e logs";
+            TextEdit { text: root.detail; read-only: true; height: 170px; }
+        }
+    }
+}
+

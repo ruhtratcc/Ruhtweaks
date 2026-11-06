@@ -1,0 +1,264 @@
+import { ScrollView, TextEdit, Spinner, Palette } from "std-widgets.slint";
+import { Theme, Card, Choice, Body, Muted, SectionTitle, Tag, ActionButton, Disclosure } from "theme.slint";
+import { HardwareCard, AppCard, BrowserChoice, TweakCard, TaskCard } from "components.slint";
+
+export struct AppRow { index: int, name: string, info: string, mark: string, detail: string, category: string, selected: bool }
+export struct TweakRow { name: string, info: string, benefit: string, category: string, state: string, selected: bool, assisted: bool }
+export struct QueueRow { title: string, status: string, detail: string, code: int }
+export struct GpuRow { name: string, vendor: string, driver: string, detail: string, available: bool }
+
+export struct UpdateRow { key: string, name: string, from: string, to: string, selected: bool, browser: bool }
+export component MainWindow inherits Window {
+    title: "Ruhtweaks";
+    preferred-width: 820px; preferred-height: 680px;
+    min-width: 620px; min-height: 500px;
+    background: Theme.background; default-font-family: "Segoe UI"; default-font-size: 14px;
+    init => { Palette.color-scheme = ColorScheme.dark; }
+    in-out property <int> page: 0;
+    in-out property <bool> wizard: true;
+    in-out property <int> wizard-step: 0;
+    in-out property <bool> inventory-loading: true;
+    in-out property <bool> pc-supported: false;
+    in-out property <int> browser-index: 0;
+    in-out property <bool> atlas-selected: false;
+    in-out property <bool> drivers-selected: false;
+    in-out property <bool> google-selected: false;
+    in-out property <bool> atlas-legacy: false;
+    in-out property <bool> atlas-legacy-available: false;
+    in-out property <bool> litecord-selected: true;
+    in-out property <string> changes-summary;
+    in-out property <bool> terms-accepted: false;
+    in-out property <bool> allow-startup: false;
+    in-out property <bool> prefer-silent: true;
+    in-out property <[UpdateRow]> updates;
+    in-out property <string> updates-status: "Consulte os apps selecionados; nenhuma atualização será marcada automaticamente.";
+    in-out property <bool> approval: false;
+    in-out property <bool> busy: false;
+    in-out property <bool> plan-ready: false;
+    in-out property <bool> more-open: false;
+    in-out property <int> notice-tone: 0;
+    in-out property <int> selected-count: 5;
+    in-out property <string> selected-summary: "Brave, Litecord, Steam, Epic Games Launcher e Riot Client";
+    in-out property <string> cpu-name: "Verificando…";
+    in-out property <string> gpu-name: "Verificando…";
+    in-out property <string> gpu-caption: "Adaptadores de vídeo";
+    in-out property <string> ram-size: "—";
+    in-out property <string> storage-count: "—";
+    in-out property <string> storage-caption: "Unidades conectadas";
+    in-out property <string> pc-label: "Verificando seu PC";
+    in-out property <string> atlas-title: "Verificando compatibilidade";
+    in-out property <string> atlas-reason: "Aguarde a consulta local do Windows.";
+    in-out property <bool> atlas-compatible: false;
+    in-out property <string> hardware;
+    in-out property <string> atlas-info;
+    in-out property <string> driver-info;
+    in-out property <string> data-path;
+    in-out property <string> status: "Suas escolhas ficam salvas neste PC.";
+    in-out property <string> details: "Nenhuma operação foi executada.";
+    in-out property <string> run-title: "Seu plano de instalação";
+    in-out property <string> run-summary: "Nenhuma operação foi iniciada.";
+    in-out property <[AppRow]> apps;
+    in-out property <[TweakRow]> tweaks;
+    in-out property <[QueueRow]> queue;
+    in-out property <[GpuRow]> gpus;
+    callback toggle-app(int, bool);
+    callback toggle-tweak(int, bool);
+    callback changed();
+    callback worker-wakeup();
+    callback confirm-handoff();
+    callback continue-without-atlas();
+    in-out property <string> handoff-description;
+    in-out property <int> handoff-kind: -1;
+    in-out property <bool> handoff-ack: false;
+    in-out property <bool> handoff-silent: false;
+    in-out property <bool> handoff-allowed: false;
+    in-out property <string> atlas-stage: "Verificar o PC e preparar arquivos";
+    in-out property <bool> external-wait: false;
+    callback prepare();
+    callback execute();
+    callback cancel();
+    callback revalidate();
+    callback retry();
+    callback refresh();
+    callback open-tweak(int);
+    callback open-source(int);
+    callback open-atlas();
+    callback open-gpu(int);
+    callback open-amd-downloads();
+    callback prepare-amd-tool();
+    callback open-browser();
+    callback rollback();
+    callback rollback-power();
+    callback rollback-browser();
+    callback scan-updates();
+    callback toggle-update(int, bool);
+    callback navigate(int);
+    callback primary();
+    callback finish();
+    in-out property <bool> needs-check: false;
+    in-out property <bool> remaining-pending: false;
+    in-out property <bool> retry-needed: false;
+    callback back();
+    callback jump-step(int);
+
+    VerticalLayout {
+        padding: 24px; spacing: 16px;
+        HorizontalLayout {
+            spacing: 10px;
+            Rectangle { width: 28px; height: 28px; border-radius: 8px; background: Theme.mint;
+                Text { text: "R"; color: Theme.background; font-size: 19px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
+            }
+            Text { text: "ruhtweaks"; color: Theme.text; font-size: 17px; font-weight: 600; vertical-alignment: center; }
+            Rectangle { horizontal-stretch: 1; }
+            if root.page < 7: Muted { text: root.page == 0 ? "1 de 4" : root.page == 2 ? "2 de 4" : root.page == 1 ? "3 de 4" : "4 de 4"; vertical-alignment: center; }
+        }
+        if root.page < 7: HorizontalLayout {
+            spacing: 5px;
+            for number in [0, 1, 2, 3]: Rectangle {
+                height: 3px; border-radius: 2px;
+                background: number <= root.wizard-step ? Theme.mint : Theme.border;
+            }
+        }
+        ScrollView {
+            horizontal-scrollbar-policy: always-off; viewport-width: self.width; vertical-stretch: 1;
+            VerticalLayout {
+                padding-right: 8px; spacing: 14px; alignment: start;
+                if root.notice-tone >= 2: Card { VerticalLayout { padding: 14px; Body { text: root.status; color: root.notice-tone == 3 ? Theme.danger : Theme.warning; } } }
+                if root.page == 0: VerticalLayout {
+                    spacing: 18px; alignment: start;
+                    Text { text: "Seu PC, do seu jeito."; font-size: 30px; font-weight: 700; color: Theme.text; wrap: word-wrap; }
+                    Muted { text: "Escolha. Confirme. A gente prepara."; }
+                    if root.inventory-loading: HorizontalLayout { spacing: 10px; Spinner { width: 18px; height: 18px; } Body { text: "Verificando seu PC…"; } }
+                    Card { VerticalLayout { padding: 18px; spacing: 14px;
+                        Muted { text: "PROCESSADOR"; font-size: 10px; }
+                        Body { text: root.cpu-name; }
+                        Muted { text: "VÍDEO"; font-size: 10px; }
+                        Body { text: root.gpu-name; }
+                        Body { text: root.ram-size + " de RAM · " + root.storage-count; }
+                    } }
+                    if root.queue.length > 0: ActionButton { text: "Retomar instalação"; quiet: true; clicked => { root.navigate(7); } }
+                }
+                if root.page == 2: VerticalLayout {
+                    spacing: 14px; alignment: start;
+                    Text { text: "Quer usar AtlasOS?"; font-size: 27px; font-weight: 700; color: Theme.text; wrap: word-wrap; }
+                    Muted { text: "Já vem selecionado quando compatível. Você pode manter seu Windows."; }
+                    Choice { text: "Manter meu Windows"; checked: !root.atlas-selected; enabled: root.atlas-selected || root.atlas-compatible || root.atlas-legacy-available; toggled(value) => { root.atlas-selected = !value; root.atlas-legacy = !value && !root.atlas-compatible; root.changed(); } }
+                    if root.atlas-compatible: Choice { text: "Preparar AtlasOS para Windows 11"; checked: root.atlas-selected && !root.atlas-legacy; toggled(value) => { root.atlas-selected = value; root.atlas-legacy = false; root.changed(); } }
+                    if root.atlas-legacy-available: VerticalLayout {
+                        spacing: 10px;
+                        Choice { text: "Atlas 0.4.1 para Windows 10 · não recomendado"; checked: root.atlas-selected && root.atlas-legacy; toggled(value) => { root.atlas-selected = value; root.atlas-legacy = value; root.changed(); } }
+                        Muted { text: "Versão antiga. Somente preparação verificada e aplicação assistida."; color: Theme.warning; }
+                    }
+                    if !root.atlas-compatible && !root.atlas-legacy-available && !root.inventory-loading: Muted { text: "Não disponível para este Windows."; }
+                    if root.atlas-selected: Muted { text: "Faça backup. Pode exigir instalação limpa e mudanças de proteção que o Ruhtweaks não executa. A aplicação não é automática."; color: Theme.warning; }
+                }
+                if root.page == 1: VerticalLayout {
+                    spacing: 12px; alignment: start;
+                    Text { text: "Seus aplicativos."; font-size: 27px; font-weight: 700; color: Theme.text; }
+                    if root.atlas-selected: Muted { text: "Escolha o navegador no assistente do Atlas."; }
+                    if !root.atlas-selected: VerticalLayout {
+                        spacing: 12px; alignment: start;
+                        SectionTitle { text: "Navegador"; }
+                        for name[index] in ["Brave · sugerido", "Firefox", "Chrome", "Edge"]: Choice {
+                            text: name; checked: root.browser-index == index;
+                            toggled(value) => { root.browser-index = value ? index : 4; root.changed(); }
+                        }
+                    }
+                    SectionTitle { text: "Aplicativos"; }
+                    for app in root.apps: Choice { text: app.name; checked: app.selected; toggled(value) => { root.toggle-app(app.index, value); } }
+                    Disclosure { title: "Mais opções";
+                        Choice { text: "Autorizar termos para consultar o WinGet"; checked: root.terms-accepted; toggled(value) => { root.terms-accepted = value; root.changed(); } }
+                        Choice { text: "Modo silencioso para apps WinGet"; checked: root.prefer-silent; toggled(value) => { root.prefer-silent = value; root.changed(); } }
+                        ActionButton { text: "Verificar atualizações"; quiet: true; enabled: !root.busy && root.terms-accepted; clicked => { root.scan-updates(); } }
+                        Muted { text: root.updates-status; }
+                        for update[index] in root.updates: VerticalLayout {
+                            if !root.atlas-selected || !update.browser: Choice { text: update.name + " · " + update.from + " → " + update.to; checked: update.selected; toggled(value) => { root.toggle-update(index, value); } }
+                        }
+                        for app in root.apps: ActionButton { text: app.name + " · fonte oficial ↗"; quiet: true; clicked => { root.open-source(app.index); } }
+                    }
+                }
+                if root.page == 6: VerticalLayout {
+                    spacing: 14px; alignment: start;
+                    Text { text: "Tudo pronto?"; font-size: 27px; font-weight: 700; color: Theme.text; }
+                    Body { text: root.selected-summary; }
+                    if root.atlas-selected: Body { text: root.atlas-legacy ? "Atlas Windows 10 · legado, não recomendado" : "Atlas Windows 11 · aplicação assistida"; }
+                    if root.drivers-selected: Body { text: "Driver da GPU detectada"; }
+                    if root.google-selected && !root.atlas-selected: Body { text: root.browser-index == 0 ? "Brave · Google como pesquisa" : "Pesquisa do navegador · assistida"; }
+                    if root.changes-summary != "": Body { text: root.changes-summary; }
+                    Muted { text: "Ao iniciar, você aprova os itens e aceita seus termos. Pode aparecer UAC."; }
+                    if root.atlas-selected: Muted { text: "Atlas exige ação manual antes de continuar os demais itens."; color: Theme.warning; }
+                    if root.litecord-selected: Muted { text: "Litecord 1.3.1 sem assinatura digital. Hash verificado; avisos do Windows mantidos."; color: Theme.warning; }
+                    if root.queue.length == 0: Muted { text: "Nenhuma alteração selecionada."; }
+                }
+                if root.page == 7: VerticalLayout {
+                    spacing: 14px; alignment: start;
+                    Text { text: root.busy ? "Preparando seu PC." : root.run-title; font-size: 27px; font-weight: 700; color: Theme.text; wrap: word-wrap; }
+                    if root.busy && !root.external-wait: Spinner { width: 20px; height: 20px; }
+                    Body { text: root.status; }
+                    Muted { text: root.run-summary; }
+                    if root.external-wait: Muted { text: "Continue no AME. Você pode fechar o Ruhtweaks e reabrir para verificar depois."; }
+                    if root.handoff-kind >= 0: Card { VerticalLayout { padding: 16px; spacing: 10px;
+                        SectionTitle { text: root.handoff-kind == 1 ? "Continue no AME" : "Instalador pendente"; }
+                        Muted { text: "Avisos do Windows não serão ignorados. No AME, interrompa se for exigido desativar proteções."; color: Theme.warning; }
+                        Choice { text: "Tenho backup e autorizo abrir a ferramenta oficial"; checked: root.handoff-ack; enabled: !root.busy; toggled(value) => { root.handoff-ack = value; } }
+                        Disclosure { title: "Arquivo e verificação"; TextEdit { text: root.handoff-description; read-only: true; height: 180px; } }
+                    } }
+                    for task in root.queue: TaskCard { title: task.title; state: task.status; detail: task.detail; code: task.code; }
+                    Disclosure { title: "Mais ações";
+                        ActionButton { text: "Verificar conclusão / após reiniciar"; quiet: true; enabled: !root.busy; clicked => { root.revalidate(); } }
+                        ActionButton { text: "Tentar novamente"; quiet: true; enabled: !root.busy; clicked => { root.retry(); } }
+                        if root.atlas-selected: ActionButton { text: "Continuar sem concluir Atlas"; quiet: true; enabled: !root.busy; clicked => { root.continue-without-atlas(); } }
+                        ActionButton { text: "Abrir pasta AMD"; quiet: true; enabled: !root.busy; clicked => { root.open-amd-downloads(); } }
+                        ActionButton { text: "Alternativa: ferramenta oficial AMD"; quiet: true; enabled: !root.busy; clicked => { root.prepare-amd-tool(); } }
+                        ActionButton { text: "Guia oficial Atlas ↗"; quiet: true; clicked => { root.open-atlas(); } }
+                        ActionButton { text: "Logs e detalhes do PC"; quiet: true; clicked => { root.navigate(8); } }
+                    }
+                }
+                if root.page == 8: VerticalLayout {
+                    spacing: 12px; alignment: start;
+                    SectionTitle { text: "Detalhes"; }
+                    TextEdit { text: root.hardware; read-only: true; height: 210px; }
+                    TextEdit { text: root.details; read-only: true; height: 260px; }
+                    TextEdit { text: root.atlas-info + "\n" + root.driver-info; read-only: true; height: 180px; }
+                    Muted { text: root.data-path; }
+                    ActionButton { text: "Atualizar inventário"; quiet: true; enabled: !root.busy && !root.inventory-loading; clicked => { root.refresh(); } }
+                    Disclosure { title: "Ferramentas e reversões";
+                        for gpu[index] in root.gpus: ActionButton { text: gpu.name + " · suporte ↗"; quiet: true; enabled: gpu.available && !root.busy; clicked => { root.open-gpu(index); } }
+                        for item[index] in root.tweaks: VerticalLayout {
+                            if item.assisted: ActionButton { text: item.name + " · abrir"; quiet: true; enabled: !root.busy; clicked => { root.open-tweak(index); } }
+                        }
+                        ActionButton { text: "Reverter extensões de arquivos"; quiet: true; enabled: !root.busy; clicked => { root.rollback(); } }
+                        ActionButton { text: "Restaurar plano de energia"; quiet: true; enabled: !root.busy; clicked => { root.rollback-power(); } }
+                        ActionButton { text: "Reverter pesquisa do Brave"; quiet: true; enabled: !root.busy; clicked => { root.rollback-browser(); } }
+                        if !root.atlas-selected: ActionButton { text: "Ajuda do navegador ↗"; quiet: true; clicked => { root.open-browser(); } }
+                    }
+                }
+            }
+        }
+        Rectangle { height: 1px; background: Theme.border; }
+        HorizontalLayout {
+            spacing: 12px;
+            if root.page != 0: ActionButton { text: "Voltar"; quiet: true; enabled: !root.busy; clicked => { root.back(); } }
+            Rectangle { horizontal-stretch: 1; }
+            ActionButton {
+                primary: true;
+                text: root.busy ? "Cancelar próximas etapas" : root.page == 0 ? "Começar" : root.page == 6 ? "Iniciar e aceitar termos" : root.page == 7 ? (root.handoff-kind >= 0 ? (root.handoff-allowed ? "Abrir e continuar" : "Revisar para continuar") : root.needs-check ? "Verificar conclusão" : root.atlas-selected && root.atlas-legacy ? "Continuar sem aplicar Atlas" : root.retry-needed ? "Tentar novamente" : root.remaining-pending ? "Continuar instalação" : "Concluir") : root.page == 3 || root.page == 4 || root.page == 5 ? "Revisar" : root.page == 8 ? "Voltar" : "Continuar";
+                enabled: root.busy ? root.page == 7 : !root.inventory-loading && (root.page != 6 || (root.plan-ready && root.queue.length > 0)) && (!(root.page == 7 && root.handoff-kind >= 0 && root.handoff-allowed) || root.handoff-ack);
+                clicked => {
+                    if root.page == 6 && !root.busy { root.approval = true; root.execute(); }
+                    else if root.page == 7 && !root.busy {
+                        if root.handoff-kind >= 0 { if root.handoff-allowed { root.confirm-handoff(); } else { root.prepare(); } }
+                        else if root.needs-check { root.revalidate(); }
+                        else if root.atlas-selected && root.atlas-legacy { root.continue-without-atlas(); }
+                        else if root.retry-needed { root.retry(); }
+                        else if root.remaining-pending { root.prepare(); }
+                        else { root.finish(); }
+                    } else { root.primary(); }
+                }
+            }
+        }
+    }
+}
+
+
+

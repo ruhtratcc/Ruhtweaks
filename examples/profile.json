@@ -1,0 +1,15 @@
+{
+  "schema_version": 4,
+  "browser": "brave",
+  "apps": ["litecord", "steam", "epic", "riot"],
+  "atlas": false,
+  "drivers": false,
+  "google_search": false,
+  "atlas_legacy": false,
+  "tweaks": [],
+  "accept_terms": false,
+  "allow_startup": false,
+  "prefer_silent": true,
+  "updates": []
+}
+

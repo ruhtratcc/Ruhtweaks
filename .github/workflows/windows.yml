@@ -1,0 +1,17 @@
+name: Windows
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  validate:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain fixa
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+      - run: cargo build --release --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ruhtweaks-windows-x64-msvc
+          path: target/release/ruhtweaks.exe

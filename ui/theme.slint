@@ -1,0 +1,125 @@
+export global Theme {
+    out property <color> background: #101217;
+    out property <color> sidebar: #14171d;
+    out property <color> surface: #1c2027;
+    out property <color> raised: #242a33;
+    out property <color> border: #2c333e;
+    out property <color> text: #f1f4f6;
+    out property <color> muted: #9da8b7;
+    out property <color> mint: #a2e8cf;
+    out property <color> mint-surface: #203c35;
+    out property <color> warning: #e8c58c;
+    out property <color> danger: #f0a5aa;
+    out property <length> radius: 10px;
+    out property <length> gap: 12px;
+    out property <length> inset: 20px;
+}
+
+export component Body inherits Text {
+    color: Theme.text; font-size: 14px; wrap: word-wrap;
+}
+export component Muted inherits Text {
+    color: Theme.muted; font-size: 13px; wrap: word-wrap;
+}
+export component SectionTitle inherits Text {
+    color: Theme.text; font-size: 17px; font-weight: 600; wrap: word-wrap;
+}
+export component Card inherits Rectangle {
+    background: Theme.surface; border-radius: Theme.radius;
+    border-width: 1px; border-color: Theme.border;
+    max-width: 100000px; horizontal-stretch: 1;
+}
+export component Choice inherits Rectangle {
+    in property <string> text;
+    in property <bool> checked: false;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+    min-width: 0px; vertical-stretch: 0;
+    border-radius: 5px; border-width: focus.has-focus ? 1px : 0px; border-color: Theme.mint;
+    opacity: enabled ? 1 : 0.45;
+    forward-focus: focus;
+    accessible-role: checkbox;
+    accessible-label: text;
+    accessible-enabled: enabled;
+    accessible-checkable: true;
+    accessible-checked: checked;
+    accessible-action-default => { if root.enabled { touch.clicked(); } }
+    HorizontalLayout {
+        padding-top: 4px; padding-bottom: 4px; spacing: 10px;
+        Rectangle {
+            width: 18px; height: 18px; border-radius: 4px; border-width: 1px;
+            border-color: root.checked ? Theme.mint : Theme.muted;
+            background: root.checked ? Theme.mint : transparent;
+            if root.checked: Text { text: "✓"; color: Theme.background; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+        }
+        Text { text: root.text; color: Theme.text; font-size: 13px; wrap: word-wrap; vertical-alignment: center; accessible-role: none; }
+    }
+    touch := TouchArea { enabled: root.enabled; clicked => { if root.enabled { root.toggled(!root.checked); } } }
+    focus := FocusScope { width: 0px; enabled: root.enabled;
+        key-pressed(event) => { if event.text == " " || event.text == "\n" {touch.clicked(); return accept;} return reject; }
+    }
+}
+export component Tag inherits Rectangle {
+    in property <string> text;
+    in property <int> tone: 0;
+    background: tone == 1 ? Theme.mint-surface : tone == 2 ? #382f24 : tone == 3 ? #3a252d : Theme.raised;
+    border-radius: 5px; min-height: 24px;
+    max-height: max(24px, badge-layout.min-height);
+    width: badge-layout.min-width;
+    horizontal-stretch: 0;
+    badge-layout := HorizontalLayout {
+        padding-left: 8px; padding-right: 8px; padding-top: 4px; padding-bottom: 4px;
+        Text { text: root.text; font-size: 11px; font-weight: 600; color: root.tone == 1 ? Theme.mint : root.tone == 2 ? Theme.warning : root.tone == 3 ? Theme.danger : Theme.muted; }
+    }
+}
+
+export component ActionButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary: false;
+    in property <bool> quiet: false;
+    in property <bool> selected: false;
+    in property <bool> enabled: true;
+    in property <bool> compact: false;
+    in property <bool> fill: false;
+    in property <image> icon;
+    callback clicked();
+    min-height: compact ? 28px : 40px; min-width: 40px; horizontal-stretch: 0; vertical-stretch: 0;
+    max-width: root.fill ? 100000px : max(40px, button-layout.min-width);
+    border-radius: 8px;
+    background: !enabled ? Theme.surface : primary ? (touch.has-hover ? #b7f0dd : Theme.mint) : selected ? Theme.mint-surface : touch.has-hover ? Theme.raised : quiet ? transparent : Theme.surface;
+    border-width: quiet && !focus.has-focus ? 0px : 1px;
+    border-color: focus.has-focus ? Theme.mint : primary ? Theme.mint : selected ? #427562 : Theme.border;
+    opacity: enabled ? 1 : 0.45;
+    forward-focus: focus;
+    accessible-role: button;
+    accessible-label: text;
+    accessible-enabled: enabled;
+    accessible-action-default => { if root.enabled { root.clicked(); } }
+    button-layout := HorizontalLayout {
+        padding-left: 14px; padding-right: 14px; padding-top: root.compact ? 5px : 9px; padding-bottom: root.compact ? 5px : 9px; spacing: 10px; alignment: root.fill ? start : center;
+        if root.icon.width > 0: Image { source: root.icon; width: 18px; height: 18px; colorize: root.primary && root.enabled ? Theme.background : root.selected ? Theme.mint : Theme.muted; }
+        Text { text: root.text; color: root.primary && root.enabled ? Theme.background : root.selected ? Theme.mint : Theme.text; font-size: 13px; font-weight: root.primary || root.selected ? 600 : 400; vertical-alignment: center; }
+    }
+    touch := TouchArea { enabled: root.enabled; clicked => {root.clicked();} }
+    focus := FocusScope {
+        width: 0px; enabled: root.enabled;
+        key-pressed(event) => {
+            if event.text == " " || event.text == "\n" { root.clicked(); return accept; }
+            return reject;
+        }
+    }
+}
+
+export component Disclosure inherits VerticalLayout {
+    in property <string> title: "Detalhes";
+    in-out property <bool> expanded: false;
+    spacing: 10px;
+    max-width: 100000px;
+    HorizontalLayout { alignment: start;
+        ActionButton { text: (root.expanded ? "−  " : "+  ") + root.title; quiet: true; compact: true; clicked => { root.expanded = !root.expanded; } }
+    }
+    Rectangle {
+        height: root.expanded ? content.min-height : 0px; clip: true; visible: root.expanded;
+        content := VerticalLayout { spacing: 8px; @children }
+    }
+}
